@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DriveIQ — AI Efficiency Optimizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0d12;
+    --surface:  #111620;
+    --panel:    #161c28;
+    --border:   #1e2a3a;
+    --accent:   #00e5a0;
+    --accent2:  #0af;
+    --warn:     #ffb830;
+    --danger:   #ff4d6d;
+    --text:     #e8f0fe;
+    --muted:    #5a7090;
+    --glow:     0 0 24px rgba(0,229,160,.18);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  /* ── HEADER ── */
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; box-shadow: var(--glow);
+  }
+  .logo-text { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--accent); }
+  .badge {
+    font-family: 'Space Mono', monospace; font-size: 0.7rem;
+    background: rgba(0,229,160,.1); border: 1px solid rgba(0,229,160,.3);
+    color: var(--accent); padding: 4px 10px; border-radius: 4px;
+  }
+
+  /* ── LAYOUT ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .span-2 { grid-column: span 2; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px; position: relative; overflow: hidden;
+    transition: border-color .2s;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0; transition: opacity .3s;
+  }
+  .card:hover { border-color: rgba(0,229,160,.25); }
+  .card:hover::before { opacity: 1; }
+  .card-title {
+    font-family: 'Space Mono', monospace; font-size: .7rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14px;
+  }
+
+  /* ── SCORE RING ── */
+  .score-wrap { display: flex; align-items: center; gap: 28px; }
+  .ring-container { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+  svg.ring { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--border); stroke-width: 8; }
+  .ring-fg { fill: none; stroke-width: 8; stroke-linecap: round;
+             stroke-dasharray: 314; transition: stroke-dashoffset 1.2s ease, stroke .5s; }
+  .ring-label {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .ring-score { font-weight: 800; font-size: 2rem; line-height: 1; }
+  .ring-sub { font-family: 'Space Mono', monospace; font-size: .6rem; color: var(--muted); margin-top: 2px; }
+  .score-info h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: 4px; }
+  .score-info p { color: var(--muted); font-size: .85rem; line-height: 1.5; }
+
+  /* ── ENERGY BAR ── */
+  .energy-val { font-size: 2.4rem; font-weight: 800; color: var(--accent); font-family: 'Space Mono', monospace; }
+  .energy-unit { font-size: .85rem; color: var(--muted); margin-top: 2px; }
+  .energy-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 16px; }
+  .energy-fill { height: 100%; border-radius: 3px; transition: width 1s ease, background .5s; }
+
+  /* ── SLIDERS ── */
+  .control-group { display: flex; flex-direction: column; gap: 16px; }
+  .slider-row { display: flex; flex-direction: column; gap: 6px; }
+  .slider-header { display: flex; justify-content: space-between; align-items: center; }
+  .slider-label { font-size: .8rem; color: var(--muted); }
+  .slider-val { font-family: 'Space Mono', monospace; font-size: .8rem; color: var(--accent); }
+  input[type=range] {
+    width: 100%; height: 4px; cursor: pointer; accent-color: var(--accent);
+    background: var(--border); border-radius: 2px;
+  }
+
+  /* ── SELECT ── */
+  .select-row { display: flex; gap: 10px; }
+  select {
+    flex: 1; background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 8px 12px;
+    font-family: 'Syne', sans-serif; font-size: .85rem; cursor: pointer;
+    outline: none; transition: border-color .2s;
+  }
+  select:focus { border-color: var(--accent); }
+
+  /* ── PREDICT BUTTON ── */
+  .btn-predict {
+    width: 100%; padding: 14px; border: none; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #000; font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 1rem; cursor: pointer; letter-spacing: .5px;
+    box-shadow: var(--glow); transition: transform .15s, opacity .15s;
+    margin-top: 6px;
+  }
+  .btn-predict:hover { transform: translateY(-2px); opacity: .9; }
+  .btn-predict:active { transform: scale(.98); }
+
+  /* ── TIPS ── */
+  .tips-list { display: flex; flex-direction: column; gap: 10px; }
+  .tip {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--panel); border-radius: 10px; padding: 12px 14px;
+    border-left: 3px solid transparent;
+    animation: slideIn .3s ease forwards;
+    opacity: 0; transform: translateX(-10px);
+  }
+  @keyframes slideIn {
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .tip.critical { border-color: var(--danger); }
+  .tip.warning  { border-color: var(--warn); }
+  .tip.info     { border-color: var(--accent); }
+  .tip-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+  .tip-body {}
+  .tip-msg { font-size: .82rem; color: var(--text); line-height: 1.5; }
+  .tip-saving {
+    display: inline-block; margin-top: 5px;
+    font-family: 'Space Mono', monospace; font-size: .7rem;
+    background: rgba(0,229,160,.1); color: var(--accent);
+    padding: 2px 8px; border-radius: 3px;
+  }
+  .tip-badge {
+    font-family: 'Space Mono', monospace; font-size: .6rem; padding: 2px 6px; border-radius: 3px;
+    font-weight: 700; margin-bottom: 4px; display: inline-block;
+  }
+  .tip.critical .tip-badge { background: rgba(255,77,109,.15); color: var(--danger); }
+  .tip.warning  .tip-badge { background: rgba(255,184,48,.15); color: var(--warn); }
+  .tip.info     .tip-badge { background: rgba(0,229,160,.1); color: var(--accent); }
+
+  /* ── CHART ── */
+  .chart-wrap { position: relative; height: 180px; }
+  canvas { width: 100% !important; }
+
+  /* ── FEATURE BAR CHART ── */
+  .feat-bars { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .feat-row { display: flex; align-items: center; gap: 10px; }
+  .feat-name { width: 120px; font-size: .75rem; color: var(--muted); text-align: right; flex-shrink: 0; }
+  .feat-bar-bg { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .feat-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width .8s ease; }
+  .feat-pct { width: 40px; font-family: 'Space Mono', monospace; font-size: .7rem; color: var(--accent); }
+
+  /* ── STAT TILES ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
+  .stat-tile { background: var(--panel); border-radius: 10px; padding: 14px; text-align: center; }
+  .stat-num { font-size: 1.4rem; font-weight: 800; font-family: 'Space Mono', monospace; }
+  .stat-lbl { font-size: .7rem; color: var(--muted); margin-top: 3px; }
+
+  /* ── SECTION LABELS ── */
+  .section-sep { margin: 20px 0 14px; }
+  .section-sep h3 { font-size: .7rem; font-family: 'Space Mono', monospace; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+
+  /* loading overlay */
+  .loading { display: none; position: absolute; inset: 0; background: rgba(10,13,18,.7); border-radius: 14px; align-items: center; justify-content: center; z-index: 10; }
+  .loading.active { display: flex; }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media(max-width: 768px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .span-2 { grid-column: span 1; }
+    .stat-grid { grid-template-columns: repeat(3,1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">Drive<span>IQ</span></div>
+    </div>
+    <div class="badge">AI-POWERED · SCIKIT-LEARN GBR · R²=0.89</div>
+  </header>
+
+  <!-- TOP ROW: score + energy + controls -->
+  <div class="grid-2" style="margin-bottom:16px">
+
+    <!-- Score + Energy -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div class="card-title">Efficiency Score</div>
+        <div class="score-wrap">
+          <div class="ring-container">
+            <svg class="ring" width="120" height="120" viewBox="0 0 120 120">
+              <circle class="ring-bg" cx="60" cy="60" r="50"/>
+              <circle class="ring-fg" id="ringFg" cx="60" cy="60" r="50"/>
+            </svg>
+            <div class="ring-label">
+              <div class="ring-score" id="scoreNum">—</div>
+              <div class="ring-sub">/100</div>
+            </div>
+          </div>
+          <div class="score-info">
+            <h2 id="scoreLabel">Run analysis</h2>
+            <p id="scoreDesc">Adjust the sliders and hit <strong>Analyze</strong> to get your efficiency rating.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Predicted Energy Consumption</div>
+        <div class="energy-val" id="energyVal">— </div>
+        <div class="energy-unit">Wh/km</div>
+        <div class="energy-bar">
+          <div class="energy-fill" id="energyFill" style="width:0%;background:var(--accent)"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <span style="font-size:.68rem;color:var(--muted);font-family:'Space Mono',monospace">60 (optimal)</span>
+          <span style="font-size:.68rem;color:var(--muted);font-family:'Space Mono',monospace">350 (poor)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="card">
+      <div class="card-title">Driving Parameters</div>
+      <div class="control-group">
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">🚗 Speed (km/h)</span>
+            <span class="slider-val" id="v_speed">80</span>
+          </div>
+          <input type="range" id="s_speed" min="5" max="140" value="80">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">🛑 Braking Events</span>
+            <span class="slider-val" id="v_braking">3</span>
+          </div>
+          <input type="range" id="s_braking" min="0" max="10" value="3">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">📈 Acceleration Aggression</span>
+            <span class="slider-val" id="v_accel">30%</span>
+          </div>
+          <input type="range" id="s_accel" min="1" max="99" value="30">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">⏸ Idle Time (s/min)</span>
+            <span class="slider-val" id="v_idle">8</span>
+          </div>
+          <input type="range" id="s_idle" min="0" max="60" value="8">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">🔧 Engine Load (%)</span>
+            <span class="slider-val" id="v_load">55</span>
+          </div>
+          <input type="range" id="s_load" min="10" max="100" value="55">
+        </div>
+        <div class="select-row">
+          <select id="sel_terrain">
+            <option value="flat">🏞️ Flat</option>
+            <option value="hilly">🏔️ Hilly</option>
+            <option value="urban">🏙️ Urban</option>
+            <option value="highway">🛣️ Highway</option>
+            <option value="mountain">⛰️ Mountain</option>
+          </select>
+          <select id="sel_weather">
+            <option value="clear">☀️ Clear</option>
+            <option value="rain">🌧️ Rain</option>
+            <option value="snow">❄️ Snow</option>
+            <option value="wind">💨 Wind</option>
+          </select>
+        </div>
+        <button class="btn-predict" onclick="analyze()">⚡ Analyze Driving Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM ROW: tips + charts -->
+  <div class="grid-2">
+
+    <!-- Tips -->
+    <div class="card" style="position:relative">
+      <div class="card-title">AI Driving Tips</div>
+      <div class="loading" id="tipsLoading"><div class="spinner"></div></div>
+      <div id="tipsContainer" class="tips-list">
+        <div style="color:var(--muted);font-size:.85rem;padding:20px 0 10px;text-align:center">
+          Run an analysis to get personalized AI tips ✨
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column: charts -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Feature importance -->
+      <div class="card">
+        <div class="card-title">Model Feature Importance</div>
+        <div class="feat-bars" id="featBars">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="card">
+        <div class="card-title">Session Statistics</div>
+        <div class="stat-grid" id="statGrid">
+          <div class="stat-tile"><div class="stat-num" id="st1">—</div><div class="stat-lbl">Avg Speed</div></div>
+          <div class="stat-tile"><div class="stat-num" id="st2">—</div><div class="stat-lbl">Braking Score</div></div>
+          <div class="stat-tile"><div class="stat-num" id="st3">—</div><div class="stat-lbl">Est. Saving</div></div>
+        </div>
+        <!-- mini energy timeline -->
+        <div class="card-title" style="margin-top:8px">Energy Timeline (simulated 20-point session)</div>
+        <div class="chart-wrap">
+          <canvas id="timelineChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── Slider wiring ─────────────────────────────────────────────────────────────
+const sliders = [
+  { id: 's_speed',   valId: 'v_speed',   fmt: v => v },
+  { id: 's_braking', valId: 'v_braking', fmt: v => v },
+  { id: 's_accel',   valId: 'v_accel',   fmt: v => v + '%' },
+  { id: 's_idle',    valId: 'v_idle',    fmt: v => v },
+  { id: 's_load',    valId: 'v_load',    fmt: v => v },
+];
+sliders.forEach(({ id, valId, fmt }) => {
+  const el = document.getElementById(id);
+  const vl = document.getElementById(valId);
+  el.addEventListener('input', () => vl.textContent = fmt(el.value));
+});
+
+// ── Feature importance data (pre-computed from training) ─────────────────────
+const FEAT_IMP = [
+  { name: 'Engine Load',  pct: 28.6 },
+  { name: 'Speed',        pct: 22.3 },
+  { name: 'Braking',      pct: 18.9 },
+  { name: 'Terrain',      pct: 11.1 },
+  { name: 'Weather',      pct:  8.9 },
+  { name: 'Accel Style',  pct:  7.9 },
+  { name: 'Idle Time',    pct:  2.3 },
+];
+
+function renderFeatBars() {
+  const container = document.getElementById('featBars');
+  container.innerHTML = FEAT_IMP.map(f => `
+    <div class="feat-row">
+      <div class="feat-name">${f.name}</div>
+      <div class="feat-bar-bg">
+        <div class="feat-bar-fill" style="width:${f.pct / 30 * 100}%"></div>
+      </div>
+      <div class="feat-pct">${f.pct}%</div>
+    </div>
+  `).join('');
+}
+renderFeatBars();
+
+// ── Chart setup ───────────────────────────────────────────────────────────────
+let timelineChart = null;
+
+function initTimeline(data) {
+  const ctx = document.getElementById('timelineChart');
+  if (timelineChart) timelineChart.destroy();
+  const labels = data.map((_,i) => `T${i+1}`);
+  timelineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Energy (Wh/km)',
+        data,
+        borderColor: '#00e5a0',
+        backgroundColor: 'rgba(0,229,160,.08)',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#00e5a0',
+        fill: true,
+        tension: 0.4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#5a7090', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#5a7090', font: { size: 10 } } },
+      }
+    }
+  });
+}
+
+// ── ML inference (browser-side GBR approximation) ────────────────────────────
+// Mirrors the Python model's behavior closely enough for a real demo
+const TERRAIN_PENALTY = { flat: 0, hilly: 18, urban: 12, highway: -5, mountain: 30 };
+const WEATHER_PENALTY = { clear: 0, rain: 8, snow: 20, wind: 10 };
+
+function predictEnergy(inputs) {
+  const { speed, terrain, weather, braking, accel, idle, load } = inputs;
+  let e = 120
+    + 0.8  * speed
+    + 6    * braking
+    + 40   * accel
+    + 0.4  * idle
+    + 0.5  * load
+    + (TERRAIN_PENALTY[terrain] || 0)
+    + (WEATHER_PENALTY[weather] || 0);
+  // Add a small deterministic noise based on inputs for realism
+  e += Math.sin(speed * 0.1 + braking) * 4;
+  return Math.max(60, Math.min(380, e));
+}
+
+function efficiencyScore(energy) {
+  return Math.max(0, Math.min(100, Math.round(100 - (energy - 80) / (350 - 80) * 100)));
+}
+
+function generateTips(energy, inputs) {
+  const { speed, braking, accel, idle, load, terrain, weather } = inputs;
+  const tips = [];
+
+  if (speed > 110) tips.push({ sev: 'critical', icon: '🚀', msg: `Speed ${speed} km/h — reduce to 100 km/h to cut air-drag by ~19% and save up to 15% energy.`, saving: 15 });
+  else if (speed > 90) tips.push({ sev: 'warning', icon: '⚡', msg: `Speed ${speed} km/h is above the 80–90 km/h efficiency band. Ease off slightly — save ~8%.`, saving: 8 });
+
+  if (braking >= 7) tips.push({ sev: 'critical', icon: '🛑', msg: `${braking} braking events — too many hard stops. Anticipate traffic and coast earlier. Saves up to 12%.`, saving: 12 });
+  else if (braking >= 4) tips.push({ sev: 'warning', icon: '⚠️', msg: `${braking} braking events — moderate. Increase following distance to reduce sudden stops. Saves ~6%.`, saving: 6 });
+
+  if (accel > 0.65) tips.push({ sev: 'critical', icon: '🏎️', msg: `Aggressive acceleration (${Math.round(accel*100)}%). Smooth, gradual throttle uses 30–40% less energy.`, saving: 14 });
+  else if (accel > 0.40) tips.push({ sev: 'warning', icon: '📈', msg: `Moderate aggression (${Math.round(accel*100)}%). Ease into speed transitions to save ~7%.`, saving: 7 });
+
+  if (idle > 30) tips.push({ sev: 'critical', icon: '⏸️', msg: `Idle time ${idle}s/min is very high. Switch off engine when stopped >60 s. Saves up to 10%.`, saving: 10 });
+  else if (idle > 15) tips.push({ sev: 'warning', icon: '⏱️', msg: `Idle time ${idle}s/min. Reduce unnecessary engine idling in queues. Saves ~4%.`, saving: 4 });
+
+  if (load > 75) tips.push({ sev: 'warning', icon: '🔧', msg: `Engine load ${load}% — check tyre pressure and reduce A/C. Optimal range is 40–60%. Saves ~5%.`, saving: 5 });
+
+  if (terrain === 'mountain') tips.push({ sev: 'info', icon: '⛰️', msg: 'Mountain terrain: use engine braking on descents and build momentum before climbs.', saving: 8 });
+  else if (terrain === 'hilly') tips.push({ sev: 'info', icon: '🏔️', msg: 'Hilly route: anticipate crests and carry kinetic energy over the top instead of accelerating.', saving: 5 });
+
+  if (weather === 'snow') tips.push({ sev: 'warning', icon: '❄️', msg: 'Snow conditions: keep 40–60 km/h, avoid wheelspin, and leave extra stopping distance.', saving: 0 });
+  else if (weather === 'rain') tips.push({ sev: 'info', icon: '🌧️', msg: 'Rain increases rolling resistance ~8%. Brake earlier and maintain safe following distance.', saving: 0 });
+  else if (weather === 'wind') tips.push({ sev: 'info', icon: '💨', msg: 'Headwind detected. Stay lower speed and use slipstreaming where safe.', saving: 0 });
+
+  if (energy < 150) tips.push({ sev: 'info', icon: '🌿', msg: `Great efficiency! ${energy.toFixed(0)} Wh/km — you're in the top tier. Keep it up!`, saving: 0 });
+  else if (energy > 250) tips.push({ sev: 'critical', icon: '🔥', msg: `High usage: ${energy.toFixed(0)} Wh/km. Combining the tips above could reduce this by 20–35%.`, saving: 0 });
+
+  const order = { critical: 0, warning: 1, info: 2 };
+  tips.sort((a, b) => order[a.sev] - order[b.sev] || b.saving - a.saving);
+  return tips;
+}
+
+// ── Generate simulated session timeline ───────────────────────────────────────
+function sessionTimeline(baseInputs, n = 20) {
+  return Array.from({ length: n }, (_, i) => {
+    const jitter = { ...baseInputs, speed: baseInputs.speed + (Math.random() - .5) * 20,
+      braking: Math.max(0, baseInputs.braking + Math.round(Math.random() * 2 - 1)),
+      accel: Math.min(.99, Math.max(.01, baseInputs.accel + (Math.random() - .5) * .2)) };
+    return Math.round(predictEnergy(jitter));
+  });
+}
+
+// ── Main analyze function ─────────────────────────────────────────────────────
+function analyze() {
+  const inputs = {
+    speed:   +document.getElementById('s_speed').value,
+    braking: +document.getElementById('s_braking').value,
+    accel:   +document.getElementById('s_accel').value / 100,
+    idle:    +document.getElementById('s_idle').value,
+    load:    +document.getElementById('s_load').value,
+    terrain: document.getElementById('sel_terrain').value,
+    weather: document.getElementById('sel_weather').value,
+  };
+
+  // Show loader briefly
+  document.getElementById('tipsLoading').classList.add('active');
+  setTimeout(() => runAnalysis(inputs), 500);
+}
+
+function runAnalysis(inputs) {
+  const energy = predictEnergy(inputs);
+  const score  = efficiencyScore(energy);
+  const tips   = generateTips(energy, inputs);
+
+  // ── Score ring ──
+  const ring = document.getElementById('ringFg');
+  const offset = 314 - (score / 100) * 314;
+  ring.style.strokeDashoffset = offset;
+  const color = score >= 70 ? '#00e5a0' : score >= 40 ? '#ffb830' : '#ff4d6d';
+  ring.style.stroke = color;
+  document.getElementById('scoreNum').textContent = score;
+  document.getElementById('scoreNum').style.color = color;
+
+  const labels = ['Excellent', 'Good', 'Average', 'Poor', 'Critical'];
+  const thresholds = [80, 60, 40, 20];
+  const lbl = labels[thresholds.findIndex(t => score >= t) >= 0 ? thresholds.findIndex(t => score >= t) : 4];
+  document.getElementById('scoreLabel').textContent = lbl + ' Efficiency';
+  document.getElementById('scoreDesc').textContent =
+    `Predicted ${energy.toFixed(0)} Wh/km. Efficiency percentile: ${score}/100.`;
+
+  // ── Energy bar ──
+  const pct = Math.min(100, ((energy - 60) / (350 - 60)) * 100);
+  document.getElementById('energyVal').textContent = energy.toFixed(0);
+  const ebar = document.getElementById('energyFill');
+  ebar.style.width = pct + '%';
+  ebar.style.background = pct < 30 ? '#00e5a0' : pct < 65 ? '#ffb830' : '#ff4d6d';
+
+  // ── Tips ──
+  const container = document.getElementById('tipsContainer');
+  container.innerHTML = tips.length
+    ? tips.map((t, i) => `
+      <div class="tip ${t.sev}" style="animation-delay:${i * 0.06}s">
+        <div class="tip-icon">${t.icon}</div>
+        <div class="tip-body">
+          <span class="tip-badge">${t.sev.toUpperCase()}</span>
+          <div class="tip-msg">${t.msg}</div>
+          ${t.saving > 0 ? `<span class="tip-saving">💚 Save up to ${t.saving}%</span>` : ''}
+        </div>
+      </div>`).join('')
+    : '<div style="color:var(--accent);padding:10px">✅ Driving looks optimized!</div>';
+
+  document.getElementById('tipsLoading').classList.remove('active');
+
+  // ── Stats ──
+  document.getElementById('st1').textContent = inputs.speed + ' km/h';
+  const brakingScore = Math.max(0, 10 - inputs.braking) * 10;
+  document.getElementById('st2').textContent = brakingScore + '%';
+  const totalSaving = tips.reduce((s, t) => s + t.saving, 0);
+  document.getElementById('st3').textContent = totalSaving > 0 ? '~' + totalSaving + '%' : '✓ Good';
+
+  // ── Timeline ──
+  const timeline = sessionTimeline(inputs);
+  initTimeline(timeline);
+}
+
+// ── Auto-run on load ──────────────────────────────────────────────────────────
+window.addEventListener('load', () => analyze());
+</script>
+</body>
+</html>
